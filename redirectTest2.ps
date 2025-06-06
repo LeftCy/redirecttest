@@ -1,0 +1,61 @@
+function Get-HttpHeadersWithRedirects {
+    param (
+        [string]$url,
+        [int]$maxRedirects = 10
+    )
+
+    $currentUrl = $url
+    $redirectCount = 0
+
+    # ログファイル名（実行日時を含めてユニークに）
+    $logFile = Join-Path -Path (Get-Location) -ChildPath ("HttpHeadersLog_{0}.txt" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+
+    # ログ書き込み用関数
+    function Write-Log {
+        param([string]$text)
+        $text | Tee-Object -FilePath $logFile -Append
+    }
+
+    Write-Log "=== HTTP Headers Log started at $(Get-Date) ==="
+    Write-Log "Target URL: $url"
+    Write-Log ""
+
+    while ($redirectCount -le $maxRedirects) {
+        try {
+            $response = Invoke-WebRequest -Uri $currentUrl -MaximumRedirection 0 -ErrorAction Stop
+        } catch [System.Net.WebException] {
+            $response = $_.Exception.Response
+        }
+
+        # ステータスコード表示・ログ
+        $statusLine = "URL: $currentUrl"
+        Write-Log $statusLine
+        $statusCodeLine = "Status Code: $($response.StatusCode.value__) $($response.StatusDescription)"
+        Write-Log $statusCodeLine
+
+        # ヘッダー表示・ログ
+        foreach ($header in $response.Headers.AllKeys) {
+            $headerLine = "$header: $($response.Headers[$header])"
+            Write-Log $headerLine
+        }
+        Write-Log ""
+
+        # Locationヘッダーがあればリダイレクト先へ
+        if ($response.Headers["Location"]) {
+            $currentUrl = $response.Headers["Location"]
+            $redirectCount++
+        } else {
+            break
+        }
+    }
+
+    if ($redirectCount -gt $maxRedirects) {
+        Write-Log "最大リダイレクト回数($maxRedirects)に達しました。"
+    }
+
+    Write-Log "=== HTTP Headers Log ended at $(Get-Date) ==="
+    Write-Host "ログファイルを作成しました: $logFile"
+}
+
+# 使用例
+Get-HttpHeadersWithRedirects -url "http://example.com"
