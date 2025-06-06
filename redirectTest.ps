@@ -1,0 +1,12 @@
+# リダイレクトを追わずにレスポンスを取得
+$response = Invoke-WebRequest -Uri "https://my.xmtrading.com/jp" -MaximumRedirection 0 -ErrorAction SilentlyContinue
+
+# ステータスコードを表示
+Write-Host "Status Code:" $response.StatusCode
+
+# Locationヘッダー（リダイレクト先URL）を表示
+if ($response.Headers["Location"]) {
+    Write-Host "Redirect Location:" $response.Headers["Location"]
+} else {
+    Write-Host "No redirect detected."
+}
